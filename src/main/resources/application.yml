@@ -20,3 +20,16 @@ management:
     health:
       probes:
         enabled: true
+
+# Comment joindre Portainer, et à quel rythme le sonder. Le jeton vient du secret Docker
+# PORTAINER_TOKEN, monté sous /run/secrets/ et repris par le configtree déclaré plus haut.
+portainer:
+  base-url: ${PORTAINER_VIRTUAL_HOST:http://admin-portainer:9000}
+  token: ${PORTAINER_TOKEN:}
+  endpoint-id: ${PORTAINER_ENDPOINT_ID:2}
+  # Une seule requête Portainer par période, quel que soit le nombre de stacks ET d'appelants.
+  refresh-interval: ${PORTAINER_REFRESH_INTERVAL:60s}
+  # Au-delà, la dernière valeur connue est déclarée trop vieille pour être crue.
+  stale-after: ${PORTAINER_STALE_AFTER:5m}
+  connect-timeout: 3s
+  read-timeout: 10s
