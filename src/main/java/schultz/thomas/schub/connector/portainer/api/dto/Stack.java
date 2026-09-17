@@ -1,4 +1,4 @@
-package schultz.thomas.schub.connector.portainer.model;
+package schultz.thomas.schub.connector.portainer.api.dto;
 
 import java.time.Instant;
 

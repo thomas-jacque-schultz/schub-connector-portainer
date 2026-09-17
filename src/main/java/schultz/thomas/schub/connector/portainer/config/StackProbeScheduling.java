@@ -1,12 +1,12 @@
 package schultz.thomas.schub.connector.portainer.config;
 
+import schultz.thomas.schub.connector.portainer.business.services.StackStateService;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
 import org.springframework.scheduling.config.ScheduledTaskRegistrar;
-import schultz.thomas.schub.connector.portainer.business.services.StackStateService;
-
 /**
  * Programme la sonde d'état à partir de la configuration.
  *

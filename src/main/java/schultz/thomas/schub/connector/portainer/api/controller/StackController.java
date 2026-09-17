@@ -1,4 +1,7 @@
-package schultz.thomas.schub.connector.portainer.controllers;
+package schultz.thomas.schub.connector.portainer.api.controller;
+
+import schultz.thomas.schub.connector.portainer.api.dto.Stack;
+import schultz.thomas.schub.connector.portainer.business.services.StackStateService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -8,9 +11,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import schultz.thomas.schub.connector.portainer.business.services.StackStateService;
-import schultz.thomas.schub.connector.portainer.model.Stack;
-
 import java.util.List;
 
 /**

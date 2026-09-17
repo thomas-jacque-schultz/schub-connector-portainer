@@ -1,5 +1,9 @@
 package schultz.thomas.schub.connector.portainer.business.services;
 
+import schultz.thomas.schub.connector.portainer.api.dto.Stack;
+import schultz.thomas.schub.connector.portainer.business.exceptions.PortainerException;
+import schultz.thomas.schub.connector.portainer.config.PortainerProperties;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -10,10 +14,6 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
-import schultz.thomas.schub.connector.portainer.business.exceptions.PortainerException;
-import schultz.thomas.schub.connector.portainer.config.PortainerProperties;
-import schultz.thomas.schub.connector.portainer.model.Stack;
-
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
