@@ -1,5 +1,8 @@
 package schultz.thomas.schub.connector.portainer.business.services;
 
+import jakarta.annotation.PreDestroy;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import schultz.thomas.schub.connector.portainer.api.dto.Stack;
 import schultz.thomas.schub.connector.portainer.config.PortainerProperties;
 
@@ -38,6 +41,20 @@ public class StackStateService {
 
     /** Motif du dernier échec, remis à null dès qu'une lecture réussit. */
     private volatile String lastFailure;
+
+    /**
+     * Fil unique sur lequel partent les commandes vers Portainer.
+     *
+     * <p>Il existe pour que {@code start} et {@code stop} rendent la main aussitôt : c'est ce
+     * qui rend le 202 du contrôleur honnête. Un seul fil, pour que deux commandes reçues à la
+     * suite s'appliquent dans cet ordre.</p>
+     */
+    private final ExecutorService commands =
+            Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "portainer-commands");
+                t.setDaemon(true);
+                return t;
+            });
 
     @PostConstruct
     void primeCache() {
@@ -96,11 +113,45 @@ public class StackStateService {
         return lastFailure;
     }
 
+    /**
+     * Demande le démarrage, et rend la main <strong>immédiatement</strong>.
+     *
+     * <p>Portainer met des dizaines de secondes à démarrer une stack. Tant que cet appel était
+     * synchrone, le 202 renvoyé au-dessus était un mensonge : le cœur attendait, dépassait son
+     * délai de lecture de 10 s, et remontait un échec à Discord — « Impossible de lancer le
+     * serveur de jeu » — <em>alors que la stack démarrait bel et bien</em>. Deux minutes plus
+     * tard, la boucle de réconciliation la voyait passer ONLINE.</p>
+     *
+     * <p>C'est le §5 du plan appliqué à la lettre : push pour la latence, pull pour la
+     * correction. Le connecteur accuse réception, la sonde dit la vérité. Un échec est
+     * journalisé et reste invisible de l'appelant — c'est le sens d'un 202 : l'issue n'est pas
+     * encore connue.</p>
+     *
+     * <p>Un seul fil d'exécution, délibérément : deux commandes sur la même stack s'appliquent
+     * dans l'ordre où elles ont été reçues.</p>
+     */
     public void start(Integer stackId) {
-        portainerClient.startStack(stackId);
+        submit("démarrage", stackId, () -> portainerClient.startStack(stackId));
     }
 
+    /** Symétrique de {@link #start(Integer)} : accepte la demande, ne l'attend pas. */
     public void stop(Integer stackId) {
-        portainerClient.stopStack(stackId);
+        submit("arrêt", stackId, () -> portainerClient.stopStack(stackId));
+    }
+
+    private void submit(String action, Integer stackId, Runnable call) {
+        commands.execute(() -> {
+            try {
+                call.run();
+                log.info("{} de la stack {} transmis à Portainer", action, stackId);
+            } catch (RuntimeException e) {
+                log.error("{} de la stack {} refusé par Portainer : {}", action, stackId, e.getMessage());
+            }
+        });
+    }
+
+    @PreDestroy
+    void stopCommandExecutor() {
+        commands.shutdown();
     }
 }

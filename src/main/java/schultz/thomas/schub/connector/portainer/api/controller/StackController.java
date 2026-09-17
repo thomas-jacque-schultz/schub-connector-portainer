@@ -55,6 +55,10 @@ public class StackController {
     /**
      * 202 et non 200 : Portainer bascule le statut de façon asynchrone. Répondre 200 laisserait
      * croire que la stack tourne déjà, alors qu'il faudra une sonde ultérieure pour le savoir.
+     *
+     * <p>Et 202 sans attendre : le service transmet la commande sur son propre fil et rend la
+     * main aussitôt. Bloquer ici ferait dépasser son délai de lecture à l'appelant, qui
+     * conclurait à un échec pendant que la stack démarre.</p>
      */
     @PostMapping("/{id}/start")
     public ResponseEntity<Void> start(@PathVariable Integer id) {
