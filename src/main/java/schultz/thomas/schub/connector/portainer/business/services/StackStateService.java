@@ -1,12 +1,12 @@
 package schultz.thomas.schub.connector.portainer.business.services;
 
+import schultz.thomas.schub.connector.portainer.api.dto.Stack;
+import schultz.thomas.schub.connector.portainer.config.PortainerProperties;
+
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import schultz.thomas.schub.connector.portainer.config.PortainerProperties;
-import schultz.thomas.schub.connector.portainer.model.Stack;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
