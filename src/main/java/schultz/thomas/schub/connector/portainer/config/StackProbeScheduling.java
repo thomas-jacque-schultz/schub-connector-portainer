@@ -7,14 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
 import org.springframework.scheduling.config.ScheduledTaskRegistrar;
-/**
- * Programme la sonde d'état à partir de la configuration.
- *
- * <p>Fait ici plutôt qu'avec {@code @Scheduled(fixedRateString = ...)} : cette annotation
- * n'accepte qu'un nombre de millisecondes ou de l'ISO-8601, ce qui obligerait à écrire
- * {@code PT60S} dans la configuration. Passer par le registrar permet de garder
- * {@code refresh-interval: 60s}, lisible par qui exploite le service.</p>
- */
+// Pas de @Scheduled(fixedRateString) : il n'accepte que des ms ou de l'ISO-8601 (PT60S), pas « 60s ».
 @Slf4j
 @Configuration
 @RequiredArgsConstructor
