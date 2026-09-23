@@ -19,12 +19,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Les appels bruts à Portainer, et la traduction de ses réponses.
- *
- * <p>Seule classe à connaître les particularités de cette API : clés capitalisées, entiers
- * rendus en {@code Number}, et un {@code Status} numérique où 1 signifie « en marche ».</p>
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -37,7 +31,6 @@ public class PortainerClient {
 
     private final PortainerProperties properties;
 
-    /** Toutes les stacks en un appel — c'est ce qui rend la sonde indépendante du nombre de serveurs. */
     public List<Stack> listStacks() {
         requireConfigured();
         Instant observedAt = Instant.now();
@@ -104,13 +97,6 @@ public class PortainerClient {
         return value instanceof Number number ? number.intValue() : null;
     }
 
-    /**
-     * Traduit l'échec en message actionnable.
-     *
-     * <p>Un 401 dit de vérifier le jeton, un 404 qu'on vise sans doute un endpoint disparu :
-     * sans cette distinction, tout ressemble à « Portainer ne marche pas » et le diagnostic
-     * recommence de zéro à chaque incident.</p>
-     */
     private PortainerException describe(String operation, String target, RestClientException e) {
         if (e instanceof ResourceAccessException) {
             log.error("Portainer injoignable [{} {}] sur {} : {}", operation, target,

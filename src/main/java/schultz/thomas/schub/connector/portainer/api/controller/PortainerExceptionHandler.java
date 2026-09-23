@@ -7,11 +7,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-/**
- * 502 plutôt que 500 : la panne est en amont, chez Portainer. L'appelant doit pouvoir
- * distinguer « le connecteur est cassé » de « Portainer ne répond pas » — dans le second cas,
- * sa boucle de réconciliation repassera d'elle-même.
- */
 @Slf4j
 @RestControllerAdvice
 public class PortainerExceptionHandler {
