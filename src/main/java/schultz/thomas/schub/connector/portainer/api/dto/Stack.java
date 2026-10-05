@@ -7,6 +7,11 @@ public record Stack(
         String name,
         Integer endpointId,
         boolean running,
-        Instant observedAt
+        Instant observedAt,
+        CommandFailure lastCommandFailure
 ) {
+
+    public Stack withLastCommandFailure(CommandFailure failure) {
+        return new Stack(id, name, endpointId, running, observedAt, failure);
+    }
 }

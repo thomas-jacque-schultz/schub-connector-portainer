@@ -25,9 +25,13 @@ import java.util.Map;
 public class PortainerClient {
 
     private static final int STATUS_RUNNING = 1;
+    private static final int STATUS_ERROR = 4;
 
     @Qualifier("portainerRestClient")
     private final RestClient restClient;
+
+    @Qualifier("portainerCommandRestClient")
+    private final RestClient commandClient;
 
     private final PortainerProperties properties;
 
@@ -56,19 +60,56 @@ public class PortainerClient {
     public void startStack(Integer stackId) {
         requireConfigured();
         try {
-            restClient.post()
+            commandClient.post()
                     .uri("/api/stacks/{id}/start?endpointId={endpoint}", stackId, properties.getEndpointId())
                     .retrieve()
                     .toBodilessEntity();
+        } catch (RestClientResponseException e) {
+            if (e.getStatusCode().value() == 409 && isGitStackInError(stackId)) {
+                log.warn("Stack {} en erreur dans Portainer : relance par redéploiement Git", stackId);
+                redeployFromGit(stackId);
+                return;
+            }
+            throw describe("start-stack", String.valueOf(stackId), e);
         } catch (RestClientException e) {
             throw describe("start-stack", String.valueOf(stackId), e);
+        }
+    }
+
+    // Sans Env ni mot de passe dans le corps, Portainer garde l'env et les identifiants Git enregistrés.
+    private void redeployFromGit(Integer stackId) {
+        try {
+            commandClient.put()
+                    .uri("/api/stacks/{id}/git/redeploy?endpointId={endpoint}", stackId, properties.getEndpointId())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("pullImage", false))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientException e) {
+            throw describe("redeploy-stack", String.valueOf(stackId), e);
+        }
+    }
+
+    private boolean isGitStackInError(Integer stackId) {
+        try {
+            Map<String, Object> raw = restClient.get()
+                    .uri("/api/stacks/{id}", stackId)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+            return raw != null
+                    && Integer.valueOf(STATUS_ERROR).equals(asInt(raw.get("Status")))
+                    && raw.get("GitConfig") != null;
+        } catch (RestClientException e) {
+            log.warn("Lecture de la stack {} impossible après un refus de démarrage : {}", stackId, e.getMessage());
+            return false;
         }
     }
 
     public void stopStack(Integer stackId) {
         requireConfigured();
         try {
-            restClient.post()
+            commandClient.post()
                     .uri("/api/stacks/{id}/stop?endpointId={endpoint}", stackId, properties.getEndpointId())
                     .retrieve()
                     .toBodilessEntity();
@@ -89,8 +130,23 @@ public class PortainerClient {
                 raw.get("Name") != null ? String.valueOf(raw.get("Name")) : null,
                 asInt(raw.get("EndpointId")),
                 Integer.valueOf(STATUS_RUNNING).equals(asInt(raw.get("Status"))),
-                observedAt
+                observedAt,
+                null
         );
+    }
+
+    private String portainerMessage(RestClientResponseException response) {
+        try {
+            Map<String, Object> body = response.getResponseBodyAs(new ParameterizedTypeReference<Map<String, Object>>() {});
+            if (body != null && body.get("details") != null) {
+                return String.valueOf(body.get("details"));
+            }
+            if (body != null && body.get("message") != null) {
+                return String.valueOf(body.get("message"));
+            }
+        } catch (RuntimeException ignored) {
+        }
+        return "conflit (409)";
     }
 
     private Integer asInt(Object value) {
@@ -114,6 +170,11 @@ public class PortainerClient {
                 log.error("Portainer 404 [{} {}] : stack ou endpoint {} inexistant. Corps: {}",
                         operation, target, properties.getEndpointId(), response.getResponseBodyAsString());
                 return new PortainerException("Stack ou endpoint inexistant côté Portainer", e);
+            }
+            if (status == 409) {
+                String reason = portainerMessage(response);
+                log.error("Portainer refuse [{} {}] : {}", operation, target, reason);
+                return new PortainerException("Portainer refuse l'opération : " + reason, e);
             }
             log.error("Portainer en erreur [{} {}], status={}. Corps: {}",
                     operation, target, status, response.getResponseBodyAsString());

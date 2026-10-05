@@ -8,6 +8,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
+
 @RequiredArgsConstructor
 @Configuration
 @EnableConfigurationProperties(PortainerProperties.class)
@@ -17,9 +19,18 @@ public class PortainerApiConfiguration {
 
     @Bean("portainerRestClient")
     public RestClient portainerRestClient() {
+        return build(properties.getReadTimeout());
+    }
+
+    @Bean("portainerCommandRestClient")
+    public RestClient portainerCommandRestClient() {
+        return build(properties.getCommandTimeout());
+    }
+
+    private RestClient build(Duration readTimeout) {
         ClientHttpRequestFactorySettings settings = ClientHttpRequestFactorySettings.DEFAULTS
                 .withConnectTimeout(properties.getConnectTimeout())
-                .withReadTimeout(properties.getReadTimeout());
+                .withReadTimeout(readTimeout);
 
         return RestClient.builder()
                 .requestFactory(ClientHttpRequestFactories.get(settings))
