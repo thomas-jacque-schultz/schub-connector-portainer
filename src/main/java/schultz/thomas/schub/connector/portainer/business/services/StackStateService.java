@@ -3,6 +3,7 @@ package schultz.thomas.schub.connector.portainer.business.services;
 import jakarta.annotation.PreDestroy;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import schultz.thomas.schub.connector.portainer.api.dto.CommandFailure;
 import schultz.thomas.schub.connector.portainer.api.dto.Stack;
 import schultz.thomas.schub.connector.portainer.config.PortainerProperties;
 
@@ -13,7 +14,9 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
@@ -27,6 +30,8 @@ public class StackStateService {
     private volatile List<Stack> lastKnown;
 
     private volatile String lastFailure;
+
+    private final Map<Integer, CommandFailure> commandFailures = new ConcurrentHashMap<>();
 
     // Un seul fil : les commandes sur une même stack s'appliquent dans l'ordre reçu.
     private final ExecutorService commands =
@@ -58,7 +63,10 @@ public class StackStateService {
     }
 
     public Optional<List<Stack>> all() {
-        return Optional.ofNullable(lastKnown);
+        return Optional.ofNullable(lastKnown)
+                .map(stacks -> stacks.stream()
+                        .map(stack -> stack.withLastCommandFailure(commandFailures.get(stack.id())))
+                        .toList());
     }
 
     public Optional<Stack> byId(Integer stackId) {
@@ -68,7 +76,7 @@ public class StackStateService {
     }
 
     public Optional<Duration> age() {
-        return all()
+        return Optional.ofNullable(lastKnown)
                 .filter(stacks -> !stacks.isEmpty())
                 .map(stacks -> Duration.between(stacks.get(0).observedAt(), Instant.now()));
     }
@@ -82,20 +90,22 @@ public class StackStateService {
     }
 
     public void start(Integer stackId) {
-        submit("démarrage", stackId, () -> portainerClient.startStack(stackId));
+        submit("start", stackId, () -> portainerClient.startStack(stackId));
     }
 
     public void stop(Integer stackId) {
-        submit("arrêt", stackId, () -> portainerClient.stopStack(stackId));
+        submit("stop", stackId, () -> portainerClient.stopStack(stackId));
     }
 
     private void submit(String action, Integer stackId, Runnable call) {
         commands.execute(() -> {
             try {
                 call.run();
-                log.info("{} de la stack {} transmis à Portainer", action, stackId);
+                commandFailures.remove(stackId);
+                log.info("Stack {} : {} transmis à Portainer", stackId, action);
             } catch (RuntimeException e) {
-                log.error("{} de la stack {} refusé par Portainer : {}", action, stackId, e.getMessage());
+                commandFailures.put(stackId, new CommandFailure(action, e.getMessage(), Instant.now()));
+                log.error("Stack {} : {} refusé par Portainer : {}", stackId, action, e.getMessage());
             }
         });
     }

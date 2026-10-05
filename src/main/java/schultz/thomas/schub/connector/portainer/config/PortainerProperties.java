@@ -23,6 +23,10 @@ public class PortainerProperties {
 
     private Duration readTimeout = Duration.ofSeconds(10);
 
+    // Portainer ne répond à un stop Swarm qu'après la suppression des services (stop_grace_period compris) ;
+    // couper avant laisse la stack en erreur.
+    private Duration commandTimeout = Duration.ofMinutes(5);
+
     public boolean isConfigured() {
         return token != null && !token.isBlank();
     }
